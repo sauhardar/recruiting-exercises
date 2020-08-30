@@ -70,4 +70,12 @@ test('should ship from only one and the cheapest warehouse if possible', () => {
       { B: { banana: 10 } },
       { C: { chocolate: 15 } },
     ]);
+
+  expect(InventoryAllocator.getCheapestShipment({ apple: 100 }, [
+    { name: 'A', inventory: { apple: 20 } },
+    { name: 'B', inventory: { apple: 20 } },
+    { name: 'C', inventory: { apple: 50 } },
+    { name: 'D', inventory: { apple: 99 } },
+    { name: 'E', inventory: { apple: 100 } },
+  ])).toEqual([{ E: { apple: 100 } }]);
 });
