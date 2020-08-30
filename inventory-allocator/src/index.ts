@@ -1,62 +1,81 @@
+// TYPES
+
+/**
+ * An order, what Deliverr receives from the customer. Represents the items available and
+ * at what quantity.
+ */
 type Order = {
   [key: string]: number;
 }
 
+/**
+ * What a single warehouse may have in storage.
+ */
 type Inventory = {
   name: string;
   inventory: Order;
 }[]
 
+/**
+ * Instructions for how a given order should be fulfilled.
+ */
 type WarehouseFulfillment = {
   [warehouseName: string]: Order;
 }
 
 /**
- * 
+ * Describes how to distribute orders across the available warehouses.
  */
 class InventoryAllocator {
-
   /**
-   * !! Determines ... 
+   * Which items should be shipped from which warehouse given the order and available resources.
    * @param order The requirements from the customer.
    * @param inventory What is current in stock and where.
    */
-  static getCheapestShipment(order: Order, warehouses: Inventory ): WarehouseFulfillment[] {
-    const remainingOrder = order;
+  static getCheapestShipment(order: Order, warehouses: Inventory): WarehouseFulfillment[] {
     const output: WarehouseFulfillment[] = [];
+    const warehouseOrders: { [warehouseName: string]: Order} = {};
 
-    warehouses.forEach((warehouse) => {
-      const { name: warehouseName, inventory } = warehouse;
+    Object.keys(order).forEach((orderItem) => {
+      let remainingItemAmount = order[orderItem];
+      let bestItemFulfillment: { warehouseName: string, amount: number }[] = [];
 
-      const warehouseFulfillment: WarehouseFulfillment = { [warehouseName]: {} };
-      
-      Object.keys(remainingOrder).map(function(itemName) {
-        if (itemName in inventory && inventory[itemName] !== 0 && remainingOrder[itemName] > 0) {
-          const itemsAdded: number = inventory[itemName] >= remainingOrder[itemName] 
-          ? remainingOrder[itemName] : inventory[itemName];
+      for (let i = 0; i < warehouses.length; i += 1) {
+        const { name, inventory } = warehouses[i];
+        const amountAvailable = inventory[orderItem];
+        const amountNecessary = order[orderItem];
 
-          warehouseFulfillment[warehouseName][itemName] = itemsAdded
+        if (orderItem in inventory && amountAvailable >= amountNecessary) {
+          bestItemFulfillment = [{ warehouseName: name, amount: order[orderItem] }];
+          remainingItemAmount = 0;
+          break;
+        } else {
+          const amountToAdd = remainingItemAmount - inventory[orderItem] <= 0
+            ? remainingItemAmount : inventory[orderItem];
 
-          remainingOrder[itemName] -= itemsAdded;
-
-          if (remainingOrder[itemName] === 0) {
-            delete remainingOrder[itemName]
+          if (amountToAdd && amountToAdd !== 0) {
+            bestItemFulfillment.push({ warehouseName: name, amount: amountToAdd });
+            remainingItemAmount -= amountToAdd;
           }
         }
-      });
-
-      Object.keys(warehouseFulfillment[warehouseName]).length !== 0 
-        && output.push(warehouseFulfillment);
-    })
-
-    let isOrderFulfilled: boolean = true;
-
-    Object.keys(remainingOrder).forEach((remainingItemName) => {
-      if (remainingOrder[remainingItemName] !== 0) {
-        isOrderFulfilled = false;
       }
-    })
-    return isOrderFulfilled ? output : [];
+
+      if (remainingItemAmount === 0) {
+        bestItemFulfillment.forEach((fulfillment) => {
+          const { warehouseName, amount } = fulfillment;
+          warehouseOrders[warehouseName] = {
+            ...warehouseOrders[warehouseName],
+            [orderItem]: amount,
+          };
+        });
+      }
+    });
+
+    Object.keys(warehouseOrders).forEach((warehouseName) => {
+      output.push({ [warehouseName]: warehouseOrders[warehouseName] });
+    });
+
+    return output;
   }
 }
 
